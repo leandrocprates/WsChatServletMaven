@@ -10,6 +10,8 @@ package com.mycompany.wschatservletmaven;
  * @author lprates
  */
 
+import com.google.gson.Gson;
+import com.model.Mensagem;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -23,15 +25,13 @@ import javax.websocket.Session;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 
-import org.apache.juli.logging.Log;
-import org.apache.juli.logging.LogFactory;
 
 import util.HtmlFilter;
 
 @ServerEndpoint(value = "/wschat/WsChatServlet")
 public class ChatAnnotation {
 
-    private static final Log log = LogFactory.getLog(ChatAnnotation.class);
+    
 
     private static final String GUEST_PREFIX = "Guest";
     private static final AtomicInteger connectionIds = new AtomicInteger(0);
@@ -75,8 +75,10 @@ public class ChatAnnotation {
     public void incoming(String message) {
         // Never trust the client
         String filteredMessage = String.format("%s: %s",  nickname, HtmlFilter.filter(message.toString()));
-        
         System.out.println("Funcao Incoming : " + filteredMessage);
+        
+        Gson gson = new Gson();
+        Mensagem mensagem = gson.fromJson(message, Mensagem.class);
         
         broadcast(filteredMessage);
     }
@@ -89,7 +91,7 @@ public class ChatAnnotation {
         
         System.out.println("Funcao onError : " + t);
                 
-        log.error("Chat Error: " + t.toString(), t);
+        System.out.println("Chat Error: " + t.toString() );
     }
 
 
@@ -100,7 +102,7 @@ public class ChatAnnotation {
                     client.session.getBasicRemote().sendText(msg);
                 }
             } catch (IOException e) {
-                log.debug("Chat Error: Failed to send message to client", e);
+                System.out.println("Chat Error: Failed to send message to client" + e );
                 connections.remove(client);
                 try {
                     client.session.close();

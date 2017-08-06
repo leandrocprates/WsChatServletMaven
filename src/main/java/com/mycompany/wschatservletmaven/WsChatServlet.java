@@ -1,7 +1,7 @@
 //This sample is how to use websocket of Tomcat.
 package com.mycompany.wschatservletmaven;
 
-
+/*
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -55,3 +55,4 @@ public class WsChatServlet extends WebSocketServlet{
         }
     }
 }
+*/
