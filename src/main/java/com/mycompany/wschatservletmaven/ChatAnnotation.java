@@ -12,6 +12,7 @@ package com.mycompany.wschatservletmaven;
 
 import com.google.gson.Gson;
 import com.model.Mensagem;
+import com.model.MessageEncoder;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Set;
@@ -49,7 +50,7 @@ import util.HtmlFilter;
 
 
 
-@ServerEndpoint(value = "/wschat/WsChatServlet")
+@ServerEndpoint(value = "/wschat/WsChatServlet" , encoders = {MessageEncoder.class})
 public class ChatAnnotation {
 
     
@@ -89,7 +90,13 @@ public class ChatAnnotation {
         System.out.println("Id Usuario : " + idUsuario);
         System.out.println("Funcao Start : " + message);
         
-        broadcast(message);
+        //broadcast(message);
+        
+        Mensagem mensagem = new Mensagem();
+        mensagem.setMensagem(message);
+        
+        broadcastObject(mensagem);
+        
     }
 
 
@@ -104,7 +111,13 @@ public class ChatAnnotation {
         
         System.out.println("Funcao End : " + message);
         
-        broadcast(message);
+        //broadcast(message);
+        
+        Mensagem mensagem = new Mensagem();
+        mensagem.setMensagem(message);
+        broadcastObject(mensagem);
+        
+        
     }
 
 
@@ -135,6 +148,10 @@ public class ChatAnnotation {
     }
 
 
+    /**
+     * Envia mensagem de texto simples 
+     * @param msg 
+     */
     private static void broadcast(String msg) {
         for (ChatAnnotation client : connections) {
             try {
@@ -157,6 +174,34 @@ public class ChatAnnotation {
     }
     
     
+    /**
+     * Envia mensagem de texto por mei ode objeto
+     * @param mensagem 
+     */
+    private static void broadcastObject(Mensagem mensagem) {
+        for (ChatAnnotation client : connections) {
+            try {
+                synchronized (client) {
+                    client.session.getBasicRemote().sendObject(mensagem);
+                }
+            } catch (IOException e) {
+                System.out.println("Chat Error: Failed to send message to client" + e );
+                connections.remove(client);
+                try {
+                    client.session.close();
+                } catch (IOException e1) {
+                    // Ignore
+                }
+                String message = String.format("* %s %s",
+                        client.nickname, "has been disconnected.");
+                broadcast(message);
+            } catch (Exception ex){
+                
+            }
+        }
+    }
+        
+    
     
     public void sendMessageToUser(Mensagem mensagem){
         
@@ -164,7 +209,9 @@ public class ChatAnnotation {
             ChatAnnotation chatAnnotation = mapConnections.get(mensagem.getToIdUsuario());
             
             if ( chatAnnotation!= null  ) {
-                chatAnnotation.session.getBasicRemote().sendText(mensagem.getMensagem());
+                //chatAnnotation.session.getBasicRemote().sendText(mensagem.getMensagem());
+                chatAnnotation.session.getBasicRemote().sendObject(mensagem);
+                
             } else {
                 System.out.println("Usuario :" +mensagem.getToIdUsuario()+ " esta desconectado.") ; 
             }

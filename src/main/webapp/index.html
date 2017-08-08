@@ -9,6 +9,10 @@
             };
             ws.onmessage = function(message){
                 document.getElementById("chatlog").textContent += message.data + "\n";
+                var msgObj = JSON.parse(message.data);
+                console.log("Tipo"+ msgObj.tipo ) ; 
+                console.log("Mnesagem"+ msgObj.mensagem ) ; 
+                
             };
             function postToServer(){
                 ws.send(document.getElementById("msg").value);
