@@ -12,6 +12,7 @@ package com.mycompany.wschatservletmaven;
 
 import com.google.gson.Gson;
 import com.model.Mensagem;
+import com.model.MessageDecoder;
 import com.model.MessageEncoder;
 import java.io.IOException;
 import java.util.HashMap;
@@ -50,7 +51,8 @@ import util.HtmlFilter;
 
 
 
-@ServerEndpoint(value = "/wschat/WsChatServlet" , encoders = {MessageEncoder.class})
+@ServerEndpoint(value = "/wschat/WsChatServlet" , encoders = {MessageEncoder.class} , 
+        decoders = {MessageDecoder.class}   )
 public class ChatAnnotation {
 
     
@@ -121,23 +123,34 @@ public class ChatAnnotation {
     }
 
 
+    /**
+     * Funcao que recebe texto 
+     * @param message 
+     */
+    /*
     @OnMessage
     public void incoming(String message) {
-        
         String filteredMessage = String.format("%s: %s",  nickname, HtmlFilter.filter(message.toString()));
         System.out.println("Funcao Incoming : " + filteredMessage);
-        
         Gson gson = new Gson();
         Mensagem mensagem = gson.fromJson(message, Mensagem.class);
-        
         sendMessageToUser(mensagem);
-        
-        
         //broadcast(filteredMessage);
     }
+    */
 
-
-
+    /**
+     * 
+     * @param mensagem 
+     */
+    @OnMessage
+    public void incoming(Mensagem mensagem) {
+        String filteredMessage = String.format("%s: %s",  nickname, HtmlFilter.filter( mensagem.getMensagem() ));
+        System.out.println("Funcao Incoming : " + filteredMessage);
+        sendMessageToUser(mensagem);
+    }
+    
+    
 
     @OnError
     public void onError(Throwable t) throws Throwable {

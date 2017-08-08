@@ -12,6 +12,9 @@ import javax.websocket.EndpointConfig;
 
 /**
  *  Transforma objecto em String para enviar objeto pelo socket 
+ * 
+ * http://javabeat.net/encoder-websocket-in-javaee-7/
+ * 
  * @author leandro.prates
  */
 public class MessageEncoder implements Encoder.Text<Mensagem>{
