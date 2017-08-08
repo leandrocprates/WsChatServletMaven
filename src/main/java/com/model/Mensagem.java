@@ -14,7 +14,9 @@ import lombok.Data;
 @Data
 public class Mensagem {
     
-    private int idUsuario;
+    private String fromIdUsuario;
+    private String toIdUsuario;
     private String mensagem; 
+    private String tipo;
     
 }

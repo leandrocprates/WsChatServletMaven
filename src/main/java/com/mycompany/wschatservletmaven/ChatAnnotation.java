@@ -13,6 +13,7 @@ package com.mycompany.wschatservletmaven;
 import com.google.gson.Gson;
 import com.model.Mensagem;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,11 +23,31 @@ import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
-import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 
 
 import util.HtmlFilter;
+
+/**
+ * 
+ * Exemplo de uso : 
+ * 
+ * ws://localhost:8080/WsChatServletMaven/wschat/WsChatServlet?usuario={idUsuarioLogado} 
+ * 
+ * ws://localhost:8080/WsChatServletMaven/wschat/WsChatServlet?usuario=1
+ * ws://localhost:8080/WsChatServletMaven/wschat/WsChatServlet?usuario=2
+ * 
+ * 
+ * { "fromIdUsuario" : "1" , "toIdUsuario" : "2" , "mensagem" : "Usuario 1 : Mensagem text ponto a ponto" , "tipo": "MensagemDeTexto" }
+ * { "fromIdUsuario" : "2" , "toIdUsuario" : "1" , "mensagem" : "Usuario 2 : Mensagem text ponto a ponto" , "tipo": "MensagemDeTexto" }
+ * 
+ * 
+ * @author leandro.prates
+ */
+
+
+
+
 
 @ServerEndpoint(value = "/wschat/WsChatServlet")
 public class ChatAnnotation {
@@ -35,9 +56,15 @@ public class ChatAnnotation {
 
     private static final String GUEST_PREFIX = "Guest";
     private static final AtomicInteger connectionIds = new AtomicInteger(0);
-    private static final Set<ChatAnnotation> connections =
-            new CopyOnWriteArraySet<>();
-
+    private static final Set<ChatAnnotation> connections = new CopyOnWriteArraySet<>();
+    
+    private static final HashMap<String,ChatAnnotation> mapConnections = new HashMap<String,ChatAnnotation>();
+    
+    //usuario logado 
+    //private Usuario usuario;
+    private String idUsuario;
+    
+    
     private final String nickname;
     private Session session;
 
@@ -48,12 +75,18 @@ public class ChatAnnotation {
 
 
     @OnOpen
-    public void start(Session session, @PathParam("url") String url) {
+    public void start(Session session) {
+        
         this.session = session;
         connections.add(this);
         String message = String.format("* %s %s", nickname, "has joined.");
         
-        System.out.println("url: " + url);
+        idUsuario = getIdUsuarioConectado(session.getQueryString());
+        //busco usuario no banco de dados e adiciona no mapa
+        mapConnections.put(idUsuario, this);
+
+        
+        System.out.println("Id Usuario : " + idUsuario);
         System.out.println("Funcao Start : " + message);
         
         broadcast(message);
@@ -62,7 +95,11 @@ public class ChatAnnotation {
 
     @OnClose
     public void end() {
+        
         connections.remove(this);
+        mapConnections.remove(this.idUsuario);
+        
+        
         String message = String.format("* %s %s", nickname, "has disconnected.");
         
         System.out.println("Funcao End : " + message);
@@ -73,14 +110,17 @@ public class ChatAnnotation {
 
     @OnMessage
     public void incoming(String message) {
-        // Never trust the client
+        
         String filteredMessage = String.format("%s: %s",  nickname, HtmlFilter.filter(message.toString()));
         System.out.println("Funcao Incoming : " + filteredMessage);
         
         Gson gson = new Gson();
         Mensagem mensagem = gson.fromJson(message, Mensagem.class);
         
-        broadcast(filteredMessage);
+        sendMessageToUser(mensagem);
+        
+        
+        //broadcast(filteredMessage);
     }
 
 
@@ -115,4 +155,25 @@ public class ChatAnnotation {
             }
         }
     }
+    
+    
+    
+    public void sendMessageToUser(Mensagem mensagem){
+        
+        try{
+            ChatAnnotation chatAnnotation = mapConnections.get(mensagem.getToIdUsuario());
+            chatAnnotation.session.getBasicRemote().sendText(mensagem.getMensagem());
+        }catch (Exception ex){
+            System.out.println(ex);
+        }
+    }
+    
+    public String getIdUsuarioConectado(String queryString){
+        String query=queryString; 
+        String queryArray[]=query.split("&");
+        String usuario[]=queryArray[0].split("=");
+        return usuario[1];
+    }
+    
+    
 }
