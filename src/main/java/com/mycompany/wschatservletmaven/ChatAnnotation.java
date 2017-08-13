@@ -14,8 +14,11 @@ import com.google.gson.Gson;
 import com.model.Mensagem;
 import com.model.MessageDecoder;
 import com.model.MessageEncoder;
+import com.model.Usuario;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -96,6 +99,16 @@ public class ChatAnnotation {
         
         Mensagem mensagem = new Mensagem();
         mensagem.setMensagem(message);
+        
+        
+        List<Usuario>  listaUsuarios = new ArrayList<Usuario>();
+        Usuario usuario = new Usuario ();
+        usuario.setId(1);
+        usuario.setNome("Leandro");
+        listaUsuarios.add(usuario);
+        
+        mensagem.setUsuario(listaUsuarios);
+        
         
         broadcastObject(mensagem);
         

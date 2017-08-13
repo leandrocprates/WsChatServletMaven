@@ -5,6 +5,7 @@
  */
 package com.model;
 
+import java.util.List;
 import lombok.Data;
 
 /**
@@ -18,5 +19,7 @@ public class Mensagem {
     private String toIdUsuario;
     private String mensagem; 
     private String tipo;
+    private List<Usuario> usuario ; 
+    
     
 }
