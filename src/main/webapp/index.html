@@ -15,7 +15,9 @@
                 
             };
             function postToServer(){
-                ws.send(document.getElementById("msg").value);
+                var mensagem = {} ; 
+                mensagem.mensagem = document.getElementById("msg").value ; 
+                ws.send( JSON.stringify(mensagem) );
                 document.getElementById("msg").value = "";
             }
             function closeConnect(){
