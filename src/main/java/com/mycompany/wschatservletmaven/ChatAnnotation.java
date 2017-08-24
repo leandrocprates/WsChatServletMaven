@@ -12,7 +12,13 @@ package com.mycompany.wschatservletmaven;
 
 import com.google.gson.Gson;
 import com.model.Mensagem;
+import com.model.MessageDecoder;
+import com.model.MessageEncoder;
+import com.model.Usuario;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,22 +28,49 @@ import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
-import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 
 
 import util.HtmlFilter;
 
-@ServerEndpoint(value = "/wschat/WsChatServlet")
+/**
+ * 
+ * Exemplo de uso : 
+ * 
+ * ws://localhost:8080/WsChatServletMaven/wschat/WsChatServlet?usuario={idUsuarioLogado} 
+ * 
+ * ws://localhost:8080/WsChatServletMaven/wschat/WsChatServlet?usuario=1
+ * ws://localhost:8080/WsChatServletMaven/wschat/WsChatServlet?usuario=2
+ * 
+ * 
+ * { "fromIdUsuario" : "1" , "toIdUsuario" : "2" , "mensagem" : "Usuario 1 : Mensagem text ponto a ponto" , "tipo": "MensagemDeTexto" }
+ * { "fromIdUsuario" : "2" , "toIdUsuario" : "1" , "mensagem" : "Usuario 2 : Mensagem text ponto a ponto" , "tipo": "MensagemDeTexto" }
+ * 
+ * 
+ * @author leandro.prates
+ */
+
+
+
+
+
+@ServerEndpoint(value = "/wschat/WsChatServlet" , encoders = {MessageEncoder.class} , 
+        decoders = {MessageDecoder.class}   )
 public class ChatAnnotation {
 
     
 
     private static final String GUEST_PREFIX = "Guest";
-    private static final AtomicInteger connectionIds = new AtomicInteger(0);
-    private static final Set<ChatAnnotation> connections =
-            new CopyOnWriteArraySet<>();
-
+    private static final AtomicInteger connectionIds = new AtomicInteger(1);
+    private static final Set<ChatAnnotation> connections = new CopyOnWriteArraySet<>();
+    
+    private static final HashMap<String,ChatAnnotation> mapConnections = new HashMap<String,ChatAnnotation>();
+    
+    //usuario logado 
+    //private Usuario usuario;
+    private String idUsuario;
+    
+    
     private final String nickname;
     private Session session;
 
@@ -48,43 +81,89 @@ public class ChatAnnotation {
 
 
     @OnOpen
-    public void start(Session session, @PathParam("url") String url) {
+    public void start(Session session) {
+        
         this.session = session;
         connections.add(this);
         String message = String.format("* %s %s", nickname, "has joined.");
         
-        System.out.println("url: " + url);
+        idUsuario = getIdUsuarioConectado(session.getQueryString());
+        //busco usuario no banco de dados e adiciona no mapa
+        mapConnections.put(idUsuario, this);
+
+        
+        System.out.println("Id Usuario : " + idUsuario);
         System.out.println("Funcao Start : " + message);
         
-        broadcast(message);
+        //broadcast(message);
+        
+        Mensagem mensagem = new Mensagem();
+        mensagem.setMensagem(message);
+        
+        
+        List<Usuario>  listaUsuarios = new ArrayList<Usuario>();
+        Usuario usuario = new Usuario ();
+        usuario.setId(1);
+        usuario.setNome("Leandro");
+        listaUsuarios.add(usuario);
+        
+        mensagem.setUsuario(listaUsuarios);
+        
+        
+        broadcastObject(mensagem);
+        
     }
 
 
     @OnClose
     public void end() {
+        
         connections.remove(this);
+        mapConnections.remove(this.idUsuario);
+        
+        
         String message = String.format("* %s %s", nickname, "has disconnected.");
         
         System.out.println("Funcao End : " + message);
         
-        broadcast(message);
+        //broadcast(message);
+        
+        Mensagem mensagem = new Mensagem();
+        mensagem.setMensagem(message);
+        broadcastObject(mensagem);
+        
+        
     }
 
 
+    /**
+     * Funcao que recebe texto 
+     * @param message 
+     */
+    /*
     @OnMessage
     public void incoming(String message) {
-        // Never trust the client
         String filteredMessage = String.format("%s: %s",  nickname, HtmlFilter.filter(message.toString()));
         System.out.println("Funcao Incoming : " + filteredMessage);
-        
         Gson gson = new Gson();
         Mensagem mensagem = gson.fromJson(message, Mensagem.class);
-        
-        broadcast(filteredMessage);
+        sendMessageToUser(mensagem);
+        //broadcast(filteredMessage);
     }
+    */
 
-
-
+    /**
+     * 
+     * @param mensagem 
+     */
+    @OnMessage
+    public void incoming(Mensagem mensagem) {
+        String filteredMessage = String.format("%s: %s",  nickname, HtmlFilter.filter( mensagem.getMensagem() ));
+        System.out.println("Funcao Incoming : " + filteredMessage);
+        sendMessageToUser(mensagem);
+    }
+    
+    
 
     @OnError
     public void onError(Throwable t) throws Throwable {
@@ -95,6 +174,10 @@ public class ChatAnnotation {
     }
 
 
+    /**
+     * Envia mensagem de texto simples 
+     * @param msg 
+     */
     private static void broadcast(String msg) {
         for (ChatAnnotation client : connections) {
             try {
@@ -115,4 +198,61 @@ public class ChatAnnotation {
             }
         }
     }
+    
+    
+    /**
+     * Envia mensagem de texto por mei ode objeto
+     * @param mensagem 
+     */
+    private static void broadcastObject(Mensagem mensagem) {
+        for (ChatAnnotation client : connections) {
+            try {
+                synchronized (client) {
+                    client.session.getBasicRemote().sendObject(mensagem);
+                }
+            } catch (IOException e) {
+                System.out.println("Chat Error: Failed to send message to client" + e );
+                connections.remove(client);
+                try {
+                    client.session.close();
+                } catch (IOException e1) {
+                    // Ignore
+                }
+                String message = String.format("* %s %s",
+                        client.nickname, "has been disconnected.");
+                broadcast(message);
+            } catch (Exception ex){
+                
+            }
+        }
+    }
+        
+    
+    
+    public void sendMessageToUser(Mensagem mensagem){
+        
+        try{
+            ChatAnnotation chatAnnotation = mapConnections.get(mensagem.getToIdUsuario());
+            
+            if ( chatAnnotation!= null  ) {
+                //chatAnnotation.session.getBasicRemote().sendText(mensagem.getMensagem());
+                chatAnnotation.session.getBasicRemote().sendObject(mensagem);
+                
+            } else {
+                System.out.println("Usuario :" +mensagem.getToIdUsuario()+ " esta desconectado.") ; 
+            }
+            
+        }catch (Exception ex){
+            System.out.println(ex);
+        }
+    }
+    
+    public String getIdUsuarioConectado(String queryString){
+        String query=queryString; 
+        String queryArray[]=query.split("&");
+        String usuario[]=queryArray[0].split("=");
+        return usuario[1];
+    }
+    
+    
 }
